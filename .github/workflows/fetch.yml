@@ -1,0 +1,27 @@
+name: Fetch veloToulouse snapshot
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"     # every 15 min
+  workflow_dispatch:         # to enable running manually
+
+permissions:
+  contents: write            # needed to create releases
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download snapshot
+        run: |
+          STAMP=$(date -u +%Y-%m-%dT%H-%M-%SZ)
+          echo "STAMP=$STAMP" >> "$GITHUB_ENV"
+          curl -fL "https://data.toulouse-metropole.fr/api/explore/v2.1/catalog/datasets/velotoulouse-disponibilite-temps-reel/exports/parquet?lang=fr&timezone=Europe%2FBerlin" -o "snapshot_$STAMP.parquet"
+
+      - name: Publish as release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release create "snapshot_$STAMP" "snapshot_$STAMP.parquet" \
+            --title "snapshot_$STAMP" --notes "Automated download"
