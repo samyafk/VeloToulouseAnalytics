@@ -1,1 +1,3 @@
 oci
+duckdb
+load_dotenv

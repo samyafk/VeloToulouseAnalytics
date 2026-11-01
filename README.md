@@ -15,6 +15,12 @@ cd VeloToulouseAnalytics
 make setup
 source .venv/bin/activate
 ```
+Modify the .env file to match your project path
+
+```bash
+# Modify this according to your project path
+PROJECT_ROOT=...your_project_path
+```
 
 ## Optional (ignore this if you want to use the example dataset above)
 The API for VeloToulouse only provides snapshots at a given time. In order to build a historical dataset, I used a free VM that I ran on Orcale Cloud. It downloads and stores a snapshot each 15 min.
