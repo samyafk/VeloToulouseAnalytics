@@ -1,61 +1,95 @@
+from pathlib import Path
+
 import duckdb
-from utils import get_env_var
 from dotenv import load_dotenv
-from const import STATIONS_HISTORY_COLUMNS
-from const import STATIONS_METADATA_COLUMNS
 
-# Loading env variables
-load_dotenv()  # reads .env
+from const import (
+    FINAL_SCHEMA,
+    NULL_TO_VAL_COLS,
+    STATIONS_HISTORY_COLUMNS,
+    STATIONS_METADATA_COLUMNS,
+)
+from utils import get_env_var
 
-BUCKET_NAME = get_env_var("OCI_BUCKET")
-RAW_FOLDER = get_env_var("RAW_DATA_DIR")
-SNAPSHOTS_FOLDER = get_env_var("SNAPSHOTS_DATA_DIR")
-CLEAN_FOLDER = get_env_var("CLEAN_DATA_DIR")
-WAREHOUSE_FOLDER = get_env_var("WAREHOUSE_DIR")
+load_dotenv()
 
-# Create/connect to db file
-con = duckdb.connect(WAREHOUSE_FOLDER + "VeloToulouseAnalytics.db")
+RAW_DIR = Path(get_env_var("RAW_DATA_DIR"))
+SNAPSHOTS_DIR = Path(get_env_var("SNAPSHOTS_DATA_DIR"))
+CLEAN_DIR = Path(get_env_var("CLEAN_DATA_DIR"))
+OUTPUT_PATH = CLEAN_DIR / "stations_history.parquet"
 
-# Load all the raw snapshot parquet files and creates/replaces the table stations_history
-con.sql(f"""
-    CREATE OR REPLACE TABLE stations_history AS
-    SELECT * FROM read_parquet('{SNAPSHOTS_FOLDER}/*.parquet', union_by_name = true)
-""")
+# Useful to extract mechanical and eletrical bike count from struct column 'data'
+VEHICLE_TYPES_SCHEMA = (
+    '{"vehicle_types_available": [{"vehicle_type_id": "VARCHAR", "count": "INTEGER"}]}'
+)
 
-# Load the stations metadata file and creates/replaces the table stations_metadata
-con.sql(f"""
-    CREATE OR REPLACE TABLE stations_metadata AS
-    SELECT * FROM read_parquet('{RAW_FOLDER}/stations-metadata.parquet', union_by_name = true)
-""")
+# Relevant columns to keep
+HISTORY_COLS = ", ".join(STATIONS_HISTORY_COLUMNS)
+METADATA_COLS = ", ".join(STATIONS_METADATA_COLUMNS)
 
-# Preview stations_metadata
-con.sql("SELECT * FROM stations_metadata").show()
+# Fill null values with 0
+NULL_FILLS = ",\n            ".join(
+    f"COALESCE({col}, {value}) AS {col}" for col, value in NULL_TO_VAL_COLS.items()
+)
 
-# Remove duplicate and create primary key <station_id>_<last_updated>
-con.sql(f"""
-    CREATE OR REPLACE TABLE stations_history AS
+# Final schema with strict type
+FINAL_SELECT = ",\n        ".join(
+    f"{col}::{dtype} AS {col}" for col, dtype in FINAL_SCHEMA.items()
+)
+
+QUERY = f"""
+    WITH parsed AS ( -- extract vehicle_types_available from data column
+        SELECT
+            *,
+            json_transform(data, '{VEHICLE_TYPES_SCHEMA}').vehicle_types_available AS vehicle_types
+        FROM read_parquet('{SNAPSHOTS_DIR}/*.parquet', union_by_name = true)
+    ),
+    history AS ( -- create primary_key, extracts mechanical and eletrical bike count & drops duplicates
+        SELECT
+            CONCAT(station_id, '_', last_updated) AS id,
+            list_filter(vehicle_types, lambda v : v.vehicle_type_id == 'mechanical')[1]['count'] AS num_mechanical,
+            list_filter(vehicle_types, lambda v : v.vehicle_type_id == 'electrical')[1]['count'] AS num_electrical,
+            {HISTORY_COLS}
+        FROM parsed
+        QUALIFY ROW_NUMBER() OVER (PARTITION BY station_id, last_updated) = 1
+    ),
+    metadata AS ( -- load stations metadata
+        SELECT {METADATA_COLS}
+        FROM read_parquet('{RAW_DIR}/stations-metadata.parquet', union_by_name = true)
+    ),
+    joined AS ( -- add stations metadata to the table
+        SELECT h.*, m.* EXCLUDE (station_id)
+        FROM history AS h
+        LEFT JOIN metadata AS m ON h.station_id = m.station_id
+    ),
+    flagged AS (
+        -- flags first: they must see the NULLs before they are filled
+        SELECT *, (rental_methods IS NOT NULL) AS credit_card_accepted
+        FROM joined
+    ),
+    cleaned AS (
+        SELECT * REPLACE ( -- replace null values with 0 for some columns + cast epoch to Timestamp
+            {NULL_FILLS},
+            (to_timestamp(last_reported) AT TIME ZONE 'UTC') AS last_reported,
+            (to_timestamp(last_updated) AT TIME ZONE 'UTC') AS last_updated
+        )
+        FROM flagged
+    )
     SELECT
-        CONCAT(station_id, '_', last_updated) AS id,
-        JSON_VALUE(data, '$.vehicle_types_available[0].count') AS num_mechanical,
-        JSON_VALUE(data, '$.vehicle_types_available[1].count') AS num_electrical,
-        {", ".join(STATIONS_HISTORY_COLUMNS)}
-    FROM stations_history
-    QUALIFY ROW_NUMBER() OVER (PARTITION BY station_id, last_updated) = 1
-""")
+        {FINAL_SELECT}
+    FROM cleaned
+"""
 
 
-con.sql(f"""
-    CREATE OR REPLACE TABLE stations_history AS
-    SELECT h.*, m.* EXCLUDE (station_id)
-    FROM stations_history AS h
-    LEFT JOIN (
-        SELECT {", ".join(STATIONS_METADATA_COLUMNS)} FROM stations_metadata
-    ) AS m
-    ON h.station_id=m.station_id
-""")
-# Store data into the clean parquet file
-con.sql(f"COPY (SELECT * FROM stations_history) TO '{CLEAN_FOLDER}/stations_history.parquet' (FORMAT parquet)").show()
+def main() -> None:
+    con = duckdb.connect()  # in-memory; only the Parquet file is persisted
+    try:
+        con.sql(f"CREATE TEMP TABLE result AS {QUERY}")
+        # run_checks(con)  # data quality checks go here, before writing
+        con.sql(f"COPY result TO '{OUTPUT_PATH}' (FORMAT parquet)")
+    finally:
+        con.close()
 
 
-
-
+if __name__ == "__main__":
+    main()

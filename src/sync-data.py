@@ -4,6 +4,7 @@ from os.path import isfile, join
 from urllib.request import urlretrieve
 from utils import get_env_var
 from dotenv import load_dotenv
+from tqdm import tqdm
 
 load_dotenv()  # reads .env
 
@@ -44,7 +45,7 @@ new_files = list(set(objects_names) - set(old_files))
 print(f"{len(new_files)} new files to be downloaded")
 
 # Download the missing files
-for file_name in new_files:
+for file_name in tqdm(new_files):
     response = client.get_object(namespace, BUCKET_NAME, file_name)
     with open(SNAPSHOTS_FOLDER + file_name, "wb") as f:
         f.write(response.data.content)

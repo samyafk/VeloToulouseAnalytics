@@ -1,3 +1,4 @@
 oci
 duckdb
 load_dotenv
+tqdm
