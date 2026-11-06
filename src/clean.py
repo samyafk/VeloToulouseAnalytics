@@ -1,5 +1,4 @@
 from pathlib import Path
-
 import duckdb
 from dotenv import load_dotenv
 
@@ -16,6 +15,7 @@ load_dotenv()
 RAW_DIR = Path(get_env_var("RAW_DATA_DIR"))
 SNAPSHOTS_DIR = Path(get_env_var("SNAPSHOTS_DATA_DIR"))
 CLEAN_DIR = Path(get_env_var("CLEAN_DATA_DIR"))
+WAREHOUSE_DIR = Path(get_env_var("WAREHOUSE_DIR"))
 OUTPUT_PATH = CLEAN_DIR / "stations_history.parquet"
 
 # Useful to extract mechanical and eletrical bike count from struct column 'data'
@@ -82,11 +82,11 @@ QUERY = f"""
 
 
 def main() -> None:
-    con = duckdb.connect()  # in-memory; only the Parquet file is persisted
+    con = duckdb.connect(WAREHOUSE_DIR / "VeloToulouseAnalytics.db")
     try:
-        con.sql(f"CREATE TEMP TABLE result AS {QUERY}")
+        con.sql(f"CREATE OR REPLACE TABLE stations_history AS {QUERY}")
         # run_checks(con)  # data quality checks go here, before writing
-        con.sql(f"COPY result TO '{OUTPUT_PATH}' (FORMAT parquet)")
+        con.sql(f"COPY stations_history TO '{OUTPUT_PATH}' (FORMAT parquet)")
     finally:
         con.close()
 

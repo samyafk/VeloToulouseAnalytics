@@ -2,3 +2,4 @@ oci
 duckdb
 load_dotenv
 tqdm
+streamlit

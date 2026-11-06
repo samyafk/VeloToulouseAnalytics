@@ -50,7 +50,7 @@ for file_name in tqdm(new_files):
     with open(SNAPSHOTS_FOLDER + file_name, "wb") as f:
         f.write(response.data.content)
 
-print("Snapshot were successfully synchronized!")
+print("Snapshots were successfully synchronized!")
 print("======================================================\n")
 
 print("====================sync-metadata====================")
