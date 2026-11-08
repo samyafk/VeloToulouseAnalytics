@@ -25,7 +25,7 @@ PROJECT_ROOT=...your_project_path
 ## Optional (if you want to use custom dark tile from CARTO)
 [CARTO](https://carto.com/basemaps/) is a service that provides tiles for Leaflet.
 
-If you want to use their Dark Matter Tile you need to provide an API key (can be requested for free from their website) and place it in ./streamlit/secrets.toml in the project folder. Otherwise, default OpenStreetMap tile will be used.
+If you want to use their Dark Matter Tile you need to provide an API key (can be requested for free from their website) and place it in ~/.streamlit/secrets.toml in the project folder. Otherwise, default OpenStreetMap tile will be used.
 ```bash
 CARTO_API_KEY = "your_api_key"
 ```
