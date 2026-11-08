@@ -32,6 +32,12 @@ NULL_FILLS = ",\n            ".join(
     f"COALESCE({col}, {value}) AS {col}" for col, value in NULL_TO_VAL_COLS.items()
 )
 
+# Fill null names and addresses
+NULL_FILLS += """
+    ,\n            COALESCE(name, CONCAT(station_id, ' - STATION NAME UNAVAILABLE')) AS name
+    ,\n            COALESCE(address, 'STATION ADDRESS UNAVAILABLE') AS address
+"""
+
 # Final schema with strict type
 FINAL_SELECT = ",\n        ".join(
     f"{col}::{dtype} AS {col}" for col, dtype in FINAL_SCHEMA.items()
@@ -67,13 +73,22 @@ QUERY = f"""
         SELECT *, (rental_methods IS NOT NULL) AS credit_card_accepted
         FROM joined
     ),
-    cleaned AS (
-        SELECT * REPLACE ( -- replace null values with 0 for some columns + cast epoch to Timestamp
-            {NULL_FILLS},
-            (to_timestamp(last_reported) AT TIME ZONE 'UTC') AS last_reported,
-            (to_timestamp(last_updated) AT TIME ZONE 'UTC') AS last_updated
+    casted AS (
+        SELECT * REPLACE ( -- cast boolean columns
+            CAST(capacity AS INTEGER) AS capacity,
+            CAST(is_installed AS BOOLEAN) AS is_installed,
+            CAST(is_renting AS BOOLEAN) AS is_renting,
+            CAST(is_returning AS BOOLEAN) AS is_returning,
         )
         FROM flagged
+    ),
+    cleaned AS (
+        SELECT * REPLACE ( -- replace null values with 0 for some columns + cast epoch to Timestamp
+            (to_timestamp(last_reported) AT TIME ZONE 'UTC') AS last_reported,
+            (to_timestamp(last_updated) AT TIME ZONE 'UTC') AS last_updated,
+            {NULL_FILLS}
+        )
+        FROM casted
     )
     SELECT
         {FINAL_SELECT}

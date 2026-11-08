@@ -22,6 +22,14 @@ Modify the .env file to match your project path
 PROJECT_ROOT=...your_project_path
 ```
 
+## Optional (if you want to use custom dark tile from CARTO)
+[CARTO](https://carto.com/basemaps/) is a service that provides tiles for Leaflet.
+
+If you want to use their Dark Matter Tile you need to provide an API key (can be requested for free from their website) and place it in ./streamlit/secrets.toml in the project folder. Otherwise, default OpenStreetMap tile will be used.
+```bash
+CARTO_API_KEY = "your_api_key"
+```
+
 ## Optional (ignore this if you want to use the example dataset above)
 The API for VeloToulouse only provides snapshots at a given time. In order to build a historical dataset, I used a free VM that I ran on Orcale Cloud. It downloads and stores a snapshot each 15 min.
 

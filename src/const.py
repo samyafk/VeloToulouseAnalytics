@@ -26,7 +26,11 @@ NULL_TO_VAL_COLS = {
     "num_bikes_available": 0,
     "num_bikes_disabled": 0,
     "num_docks_available": 0,
-    "num_docks_disabled": 0
+    "num_docks_disabled": 0,
+    "capacity": 0,
+    "is_installed": False,
+    "is_renting": False,
+    "is_returning": False
 }
 
 FINAL_SCHEMA = { # Col: type
