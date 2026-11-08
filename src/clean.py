@@ -8,7 +8,10 @@ from const import (
     STATIONS_HISTORY_COLUMNS,
     STATIONS_METADATA_COLUMNS,
 )
-from utils import get_env_var
+from utils import (
+    get_env_var,
+    run_checks
+)
 
 load_dotenv()
 
@@ -34,7 +37,6 @@ NULL_FILLS = ",\n            ".join(
 
 # Fill null names and addresses
 NULL_FILLS += """
-    ,\n            COALESCE(name, CONCAT(station_id, ' - STATION NAME UNAVAILABLE')) AS name
     ,\n            COALESCE(address, 'STATION ADDRESS UNAVAILABLE') AS address
 """
 
@@ -93,6 +95,10 @@ QUERY = f"""
     SELECT
         {FINAL_SELECT}
     FROM cleaned
+    WHERE -- Here we can put some cleaning filters
+        last_reported > TIMESTAMP '2026-01-01' AND
+        num_mechanical >= 0 AND
+        num_electrical >= 0
 """
 
 
@@ -100,7 +106,7 @@ def main() -> None:
     con = duckdb.connect(WAREHOUSE_DIR / "VeloToulouseAnalytics.db")
     try:
         con.sql(f"CREATE OR REPLACE TABLE stations_history AS {QUERY}")
-        # run_checks(con)  # data quality checks go here, before writing
+        run_checks(con)  # data quality checks go here, before writing
         con.sql(f"COPY stations_history TO '{OUTPUT_PATH}' (FORMAT parquet)")
     finally:
         con.close()
