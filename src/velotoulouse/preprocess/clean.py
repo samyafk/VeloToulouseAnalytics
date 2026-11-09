@@ -2,13 +2,13 @@ from pathlib import Path
 import duckdb
 from dotenv import load_dotenv
 
-from const import (
+from velotoulouse.const import (
     FINAL_SCHEMA,
     NULL_TO_VAL_COLS,
     STATIONS_HISTORY_COLUMNS,
     STATIONS_METADATA_COLUMNS,
 )
-from utils import (
+from velotoulouse.utils import (
     get_env_var,
     run_checks
 )

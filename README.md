@@ -1,10 +1,10 @@
 # VeloToulouseAnalytics
 ## Setup
 
-Prerequisites: WSL/Linux, Python 3.10+, Java 17 + clone repository
+Prerequisites: WSL/Linux, Python 3.10+ & clone repository
 
 ```bash
-sudo apt install -y python3-venv openjdk-17-jdk-headless make
+sudo apt install -y python3-venv
 sudo apt install gh
 git clone https://github.com/samyafk/VeloToulouseAnalytics.git
 ```

@@ -3,3 +3,8 @@ duckdb
 load_dotenv
 tqdm
 streamlit
+folium
+streamlit_folium
+branca
+pandas
+-e .
