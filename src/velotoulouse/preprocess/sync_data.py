@@ -2,7 +2,7 @@ import oci
 from os import listdir
 from os.path import isfile, join
 from urllib.request import urlretrieve
-from utils import get_env_var
+from velotoulouse.utils import get_env_var
 from dotenv import load_dotenv
 from tqdm import tqdm
 

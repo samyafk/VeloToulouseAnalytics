@@ -4,7 +4,7 @@ import streamlit as st
 import folium
 from streamlit_folium import st_folium
 import duckdb
-from utils import get_env_var
+from velotoulouse.utils import get_env_var
 from dotenv import load_dotenv
 import branca
 
@@ -18,8 +18,6 @@ duckdb_conn = duckdb.connect(
     WAREHOUSE_DIR / "VeloToulouseAnalytics.db",
     read_only=True
 )
-
-snapshot_timestamp = '2026-11-06T20:14:00.000Z'
 
 latest_snapshot = duckdb_conn.sql(f"""
     with SNAPSHOT AS (
@@ -64,6 +62,7 @@ for _, row in df.iterrows():
     html = f"""
         <h1>{row["name"]}</h1>
         <p>
+            Time : {row["latest_snapshot_time"]}<br>
             Mechanical bikes available : {row["num_mechanical"]}<br>
             Electrical bikes available : {row["num_electrical"]}<br>
             Parking slots available : {row["num_docks_available"]}
