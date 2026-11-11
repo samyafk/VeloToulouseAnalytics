@@ -1,3 +1,4 @@
+from pathlib import Path
 import oci
 from os import listdir
 from os.path import isfile, join
@@ -12,9 +13,9 @@ def main() -> None:
 
 
     BUCKET_NAME = get_env_var("OCI_BUCKET")
-    RAW_DATA_FOLDER = get_env_var("RAW_DATA_DIR")
-    SNAPSHOTS_FOLDER = get_env_var("SNAPSHOTS_DATA_DIR")
     METADATA_URL = get_env_var("STATIONS_METADATA_URL")
+    METADATA_DIR = Path(get_env_var("METADATA_DIR"))
+    SNAPSHOTS_FOLDER = Path(get_env_var("SNAPSHOTS_DATA_DIR"))
 
     # Load config (use profile_name="OTHER" if you have a non-default profile)
     config = oci.config.from_file("~/.oci/config", "DEFAULT")
@@ -40,7 +41,7 @@ def main() -> None:
 
     objects_names = [obj.name for obj in objects]
 
-    old_files = [f for f in listdir(SNAPSHOTS_FOLDER) if isfile(join(SNAPSHOTS_FOLDER, f))]
+    old_files = [f.name for f in SNAPSHOTS_FOLDER.glob("*") if f.is_file()]
 
     # Missing files
     new_files = list(set(objects_names) - set(old_files))
@@ -49,7 +50,7 @@ def main() -> None:
     # Download the missing files
     for file_name in tqdm(new_files):
         response = client.get_object(namespace, BUCKET_NAME, file_name)
-        with open(SNAPSHOTS_FOLDER + file_name, "wb") as f:
+        with open(SNAPSHOTS_FOLDER / file_name, "wb") as f:
             f.write(response.data.content)
 
     print("Snapshots were successfully synchronized!")
@@ -57,8 +58,7 @@ def main() -> None:
 
     print("====================sync-metadata====================")
 
-    metadata_path = RAW_DATA_FOLDER + 'stations-metadata.parquet'
-    urlretrieve(METADATA_URL, metadata_path)
+    urlretrieve(METADATA_URL, METADATA_DIR / 'stations-metadata.parquet')
 
     print("Stations metadata was successfully synchronized!")
     print("=====================================================")

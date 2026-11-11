@@ -56,42 +56,44 @@ FINAL_SCHEMA = { # Col: type
     "version" : "VARCHAR",
 }
 
-CHECKS = {
-    "primary key (id) is unique": """
-        SELECT COUNT(*) - COUNT(DISTINCT id) FROM stations_history
-    """,
-    "no NULL keys": """
-        SELECT COUNT(*) FROM stations_history
-        WHERE station_id IS NULL OR last_updated IS NULL
-    """,
-    "station coordinates are not null": """
-        SELECT COUNT(*) FROM stations_history WHERE lat IS NULL OR lon IS NULL
-    """,
-    "station flags are not null": """
-        SELECT COUNT(*) FROM stations_history WHERE is_installed IS NULL OR is_renting IS NULL OR is_returning IS NULL
-    """,
-    "capacity is not null or negative": """
-        SELECT COUNT(*) FROM stations_history
-        WHERE capacity IS NULL OR capacity < 0
-    """,
-    "num_mechanical is not null or negative": """
-        SELECT COUNT(*) FROM stations_history
-        WHERE num_mechanical IS NULL OR num_mechanical < 0
-    """,
-    "num_electrical is not null or negative": """
-        SELECT COUNT(*) FROM stations_history
-        WHERE num_electrical IS NULL OR num_electrical < 0
-    """,
-    "mechanical + electrical = total": """
-        SELECT COUNT(*) FROM stations_history
-        WHERE num_bikes_available != num_mechanical + num_electrical
-    """,
-    "last_updated timestamps are plausible": """
-        SELECT COUNT(*) FROM stations_history
-        WHERE last_updated < TIMESTAMP '2026-01-01' OR last_updated > now() OR last_updated IS NULL
-    """,
-    "last_reported timestamps are plausible": """
-        SELECT COUNT(*) FROM stations_history
-        WHERE last_reported < TIMESTAMP '2026-01-01' OR last_reported > now() OR last_reported IS NULL
-    """,
-}
+def get_checks_query(table_name):
+    CHECKS = {
+        "primary key (id) is unique": f"""
+            SELECT COUNT(*) - COUNT(DISTINCT id) FROM {table_name}
+        """,
+        "no NULL keys": f"""
+            SELECT COUNT(*) FROM {table_name}
+            WHERE station_id IS NULL OR last_updated IS NULL
+        """,
+        "station coordinates are not null": f"""
+            SELECT COUNT(*) FROM {table_name} WHERE lat IS NULL OR lon IS NULL
+        """,
+        "station flags are not null": f"""
+            SELECT COUNT(*) FROM {table_name} WHERE is_installed IS NULL OR is_renting IS NULL OR is_returning IS NULL
+        """,
+        "capacity is not null or negative": f"""
+            SELECT COUNT(*) FROM {table_name}
+            WHERE capacity IS NULL OR capacity < 0
+        """,
+        "num_mechanical is not null or negative": f"""
+            SELECT COUNT(*) FROM {table_name}
+            WHERE num_mechanical IS NULL OR num_mechanical < 0
+        """,
+        "num_electrical is not null or negative": f"""
+            SELECT COUNT(*) FROM {table_name}
+            WHERE num_electrical IS NULL OR num_electrical < 0
+        """,
+        "mechanical + electrical = total": f"""
+            SELECT COUNT(*) FROM {table_name}
+            WHERE num_bikes_available != num_mechanical + num_electrical
+        """,
+        "last_updated timestamps are plausible": f"""
+            SELECT COUNT(*) FROM {table_name}
+            WHERE last_updated < TIMESTAMP '2026-01-01' OR last_updated > now() OR last_updated IS NULL
+        """,
+        "last_reported timestamps are plausible": f"""
+            SELECT COUNT(*) FROM {table_name}
+            WHERE last_reported < TIMESTAMP '2026-01-01' OR last_reported > now() OR last_reported IS NULL
+        """,
+    }
+    return CHECKS

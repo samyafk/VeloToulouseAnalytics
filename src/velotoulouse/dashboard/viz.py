@@ -9,9 +9,11 @@ from dotenv import load_dotenv
 import branca
 
 
-load_dotenv()
+############################################## Fetch data for the latest timestamp ##############################################
 
+load_dotenv()
 WAREHOUSE_DIR = Path(get_env_var("WAREHOUSE_DIR"))
+ASSETS_DIR = Path(get_env_var("ASSETS_DIR"))
 
 # Create a read-only connection to the db
 duckdb_conn = duckdb.connect(
@@ -40,6 +42,9 @@ latest_snapshot = duckdb_conn.sql(f"""
 """).df()
 
 df = pd.DataFrame(latest_snapshot)
+
+
+############################################## Dashboard setup ##############################################
 
 # Create the map object
 m = folium.Map(location=[df["lat"].mean(), df["lon"].mean()], zoom_start=13, max_zoom=18)
@@ -84,4 +89,16 @@ for _, row in df.iterrows():
         popup=popup
     ).add_to(m)
 
-st_folium(m, width=725, returned_objects=[])
+
+# Page setup
+
+st.set_page_config(page_title= "VeloToulouseAnalytics", page_icon=ASSETS_DIR / "favicon.png", initial_sidebar_state=None, menu_items=None, layout="wide")
+# Title
+st.title('VeloToulouse Analytics dashboard')
+
+
+# Create a text element to let the views know the map is loading
+data_load_state = st.text('Loading data...')
+map_data = st_folium(m, use_container_width=True, height=600, returned_objects=[])
+# Remove the loading text
+data_load_state.empty()
