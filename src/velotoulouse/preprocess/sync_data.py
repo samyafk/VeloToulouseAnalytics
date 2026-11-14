@@ -11,7 +11,6 @@ from tqdm import tqdm
 def main() -> None:
     load_dotenv()  # reads .env
 
-
     BUCKET_NAME = get_env_var("OCI_BUCKET")
     METADATA_URL = get_env_var("STATIONS_METADATA_URL")
     METADATA_DIR = Path(get_env_var("METADATA_DIR"))
@@ -41,7 +40,8 @@ def main() -> None:
 
     objects_names = [obj.name for obj in objects]
 
-    old_files = [f.name for f in SNAPSHOTS_FOLDER.glob("*") if f.is_file()]
+    # Find old file that were already processed
+    old_files = [f.name for f in SNAPSHOTS_FOLDER.glob("old/*") if f.is_file()]
 
     # Missing files
     new_files = list(set(objects_names) - set(old_files))
@@ -50,7 +50,7 @@ def main() -> None:
     # Download the missing files
     for file_name in tqdm(new_files):
         response = client.get_object(namespace, BUCKET_NAME, file_name)
-        with open(SNAPSHOTS_FOLDER / file_name, "wb") as f:
+        with open(SNAPSHOTS_FOLDER / ('new/' + file_name), "wb") as f:
             f.write(response.data.content)
 
     print("Snapshots were successfully synchronized!")

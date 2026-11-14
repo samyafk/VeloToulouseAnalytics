@@ -1,5 +1,6 @@
 oci
 duckdb
+shutil
 load_dotenv
 tqdm
 streamlit

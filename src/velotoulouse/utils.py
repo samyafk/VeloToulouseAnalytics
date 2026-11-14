@@ -1,5 +1,6 @@
 import os
 from velotoulouse.const import get_checks_query
+import shutil
 
 def get_preprocess_query(
         STATIONS_HISTORY_COLUMNS,
@@ -107,3 +108,30 @@ def run_checks(con, table_name):
             failures[name] = bad_rows
     if failures:
         raise ValueError(f"Data quality checks failed: {failures}")
+
+
+def check_no_duplicates(con, staging, target):
+
+    # Duplicates inside the batch itself
+    inner = con.execute(f"""
+        SELECT count(*) FROM (
+            SELECT id FROM {staging}
+            GROUP BY id HAVING count(*) > 1
+        )
+    """).fetchone()[0]
+    assert inner == 0, f"{inner} duplicate keys within the new batch"
+
+    # Keys that already exist in the target table
+    overlap = con.execute(f"""
+        SELECT count(*) FROM {staging} s
+        JOIN {target} t ON s.id = t.id
+    """).fetchone()[0]
+    assert overlap == 0, f"{overlap} rows already exist in {target}"
+
+
+def move_to_folder(source_dir, target_dir):
+        
+    file_names = os.listdir(source_dir)
+        
+    for file_name in file_names:
+        shutil.move(os.path.join(source_dir, file_name), target_dir)

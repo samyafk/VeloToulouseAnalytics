@@ -13,7 +13,9 @@ from velotoulouse.const import (
 from velotoulouse.utils import (
     get_env_var,
     run_checks,
-    get_preprocess_query
+    check_no_duplicates,
+    get_preprocess_query,
+    move_to_folder
 )
 
 def preprocess(clean_history=True, sync_latest_snapshot=False):
@@ -23,7 +25,8 @@ def preprocess(clean_history=True, sync_latest_snapshot=False):
 
     if clean_history:
 
-        SNAPSHOTS_DIR = Path(get_env_var("SNAPSHOTS_DATA_DIR"))
+        NEW_SNAPSHOTS_DIR = Path(get_env_var("SNAPSHOTS_DATA_DIR")) / 'new/'
+        OLD_SNAPSHOTS_DIR = Path(get_env_var("SNAPSHOTS_DATA_DIR")) / 'old/'
         WAREHOUSE_DIR = Path(get_env_var("WAREHOUSE_DIR"))
         OUTPUT_PATH = Path(get_env_var("CLEAN_DATA_DIR")) / "stations_history.parquet"
 
@@ -32,35 +35,52 @@ def preprocess(clean_history=True, sync_latest_snapshot=False):
             STATIONS_METADATA_COLUMNS,
             NULL_TO_VAL_COLS,
             FINAL_SCHEMA,
-            SNAPSHOTS_DIR,
+            NEW_SNAPSHOTS_DIR,
             METADATA_DIR
         )
 
         table_name = "stations_history"
         con = duckdb.connect(WAREHOUSE_DIR / "VeloToulouseAnalytics.db")
+        STAGING = f"{table_name}__staging"
+
         try:
-            con.sql(f"CREATE OR REPLACE TABLE {table_name} AS {QUERY}")
-            run_checks(con, table_name)  # data quality checks go here, before writing
-            con.sql(f"COPY {table_name} TO '{OUTPUT_PATH}' (FORMAT parquet)")
+            con.execute(f"CREATE OR REPLACE TEMP TABLE {STAGING} AS {QUERY}")
+            run_checks(con, STAGING)
+            check_no_duplicates(con, STAGING, table_name)
+
+            con.execute("BEGIN TRANSACTION")
+            con.execute(f"CREATE TABLE IF NOT EXISTS {table_name} AS SELECT * FROM {STAGING} LIMIT 0")
+            con.execute(f"INSERT INTO {table_name} SELECT * FROM {STAGING}")
+            con.execute(f"COPY {table_name} TO '{OUTPUT_PATH}' (FORMAT parquet)")
+            con.execute("COMMIT")
+
+            move_to_folder(NEW_SNAPSHOTS_DIR, OLD_SNAPSHOTS_DIR)
+        except Exception:
+            try:
+                con.execute("ROLLBACK")
+            except duckdb.Error:
+                pass
+            raise
         finally:
+            con.execute(f"DROP TABLE IF EXISTS {STAGING}")
             con.close()
 
     if sync_latest_snapshot:
 
         LATEST_SNAPSHOT_URL = get_env_var("LATEST_SNAPSHOT_URL")
-        LATEST_SNAPSHOT_DIR = Path(get_env_var("LATEST_SNAPSHOT_DIR"))
-        OUTPUT_PATH = Path(get_env_var("CLEAN_DATA_DIR")) / "stations_history.parquet"
+        RAW_LATEST_SNAPSHOT_DIR = Path(get_env_var("RAW_LATEST_SNAPSHOT_DIR"))
+        OUTPUT_PATH = Path(get_env_var("CLEAN_DATA_DIR")) / "latest_snapshot_processed.parquet"
 
         QUERY = get_preprocess_query(
             STATIONS_HISTORY_COLUMNS,
             STATIONS_METADATA_COLUMNS,
             NULL_TO_VAL_COLS,
             FINAL_SCHEMA,
-            LATEST_SNAPSHOT_DIR,
+            RAW_LATEST_SNAPSHOT_DIR,
             METADATA_DIR
         )
 
-        urlretrieve(LATEST_SNAPSHOT_URL, LATEST_SNAPSHOT_DIR / 'latest-snapshot.parquet')
+        urlretrieve(LATEST_SNAPSHOT_URL, RAW_LATEST_SNAPSHOT_DIR / 'latest_snapshot_raw.parquet')
         
         con = duckdb.connect()
         try:
@@ -74,4 +94,4 @@ def preprocess(clean_history=True, sync_latest_snapshot=False):
 
 
 if __name__ == "__main__":
-    preprocess(clean_history=False, sync_latest_snapshot=True)
+    preprocess()
