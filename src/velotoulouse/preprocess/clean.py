@@ -2,7 +2,7 @@ from pathlib import Path
 import duckdb
 from dotenv import load_dotenv
 from urllib.request import urlretrieve
-
+import os
 
 from velotoulouse.const import (
     FINAL_SCHEMA,
@@ -80,16 +80,17 @@ def preprocess(clean_history=True, sync_latest_snapshot=False):
             METADATA_DIR
         )
 
-        urlretrieve(LATEST_SNAPSHOT_URL, RAW_LATEST_SNAPSHOT_DIR / 'latest_snapshot_raw.parquet')
+        urlretrieve(LATEST_SNAPSHOT_URL, RAW_LATEST_SNAPSHOT_DIR / 'latest_snapshot_raw.temp')
+        os.replace(RAW_LATEST_SNAPSHOT_DIR / 'latest_snapshot_raw.temp', RAW_LATEST_SNAPSHOT_DIR / 'latest_snapshot_raw.parquet')
         
         con = duckdb.connect()
         try:
             table_name = "stations_latest_snapshot"
-            con.sql(f"CREATE TEMP TABLE {table_name} AS {QUERY}")
+            con.execute(f"CREATE TEMP TABLE {table_name} AS {QUERY}")
             run_checks(con, table_name)  # data quality checks go here, before writing
-            con.sql(f"COPY {table_name} TO '{OUTPUT_PATH}' (FORMAT parquet)")
+            con.execute(f"COPY {table_name} TO '{OUTPUT_PATH}' (FORMAT parquet)")
         finally:
-            con.close()
+            con.close() 
 
 
 
