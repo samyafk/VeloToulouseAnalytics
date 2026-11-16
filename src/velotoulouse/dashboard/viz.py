@@ -12,6 +12,7 @@ from streamlit_folium import st_folium
 from velotoulouse.preprocess.clean import preprocess
 from velotoulouse.utils import get_env_var
 
+
 # ----------------------------------------------------------------------------
 # Config
 # ----------------------------------------------------------------------------
@@ -36,15 +37,13 @@ CARTO_ATTRIBUTION = (
 
 PAGE_CSS = """
 <style>
-    .block-container {
-        padding-top: 3rem;
-        padding-bottom: 0rem;
-    }
-    iframe[title="streamlit_folium.st_folium"] {
-        height: 100vh !important;
-    }
+  .block-container {
+    padding-top: 0rem;
+    padding-bottom: 0rem;
+  }
 </style>
 """
+
 
 # ----------------------------------------------------------------------------
 # Data
@@ -62,7 +61,7 @@ def load_latest_snapshot():
     query = f"""
         WITH snapshot AS (
             SELECT
-                *,
+                *, 
                 MAX(capacity) OVER () AS max_capacity,
                 MIN(capacity) OVER () AS min_capacity
             FROM read_parquet('{SNAPSHOT_PATH}', union_by_name = true)
@@ -151,19 +150,27 @@ def add_station_markers(m, df):
 
 
 def build_map(df):
-    if df.empty:
-        LAT_0 = 43.60465
-        LON_0 = 1.444209
+
+    if df.empty: # Toulouse center coordinates
+        center = [43.6047, 1.4442]
     else:
-        LAT_0 = df["lat"].mean()
-        LON_0 = df["lon"].mean()
+        center = [df["lat"].mean(), df["lon"].mean()]
+
     m = folium.Map(
-        location=[LAT_0, LON_0],
-        zoom_start=MAP_ZOOM_START,
+        location=center,
         max_zoom=MAP_ZOOM_MAX,
+        zoom_start=MAP_ZOOM_START,
+        zoom_control=False,
     )
+
+    m.fit_bounds(
+        [[df["lat"].min(), df["lon"].min()], [df["lat"].max(), df["lon"].max()]],
+        padding=(40, 40)
+    )
+
     add_base_tiles(m)
     add_station_markers(m, df)
+
     return m
 
 
@@ -206,7 +213,7 @@ def main():
     df_filtered = filter_stations(df, filters)
 
     with st.spinner("Loading..."):
-        st_folium(build_map(df_filtered), use_container_width=True, returned_objects=[])
+        st_folium(build_map(df_filtered), use_container_width=True, height=650, returned_objects=[])
 
 
 main()

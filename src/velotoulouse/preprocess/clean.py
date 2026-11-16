@@ -17,8 +17,13 @@ from velotoulouse.utils import (
     get_preprocess_query,
     move_to_folder
 )
+import threading, time
+from datetime import datetime
 
 def preprocess(clean_history=True, sync_latest_snapshot=False):
+
+    print(f"[preprocess] start pid={os.getpid()} thread={threading.current_thread().name} t={datetime.now().strftime("%H:%M:%S.%f")[:-3]}", flush=True)
+
     
     load_dotenv()
     METADATA_DIR = Path(get_env_var("METADATA_DIR"))
@@ -90,7 +95,8 @@ def preprocess(clean_history=True, sync_latest_snapshot=False):
             run_checks(con, table_name)  # data quality checks go here, before writing
             con.execute(f"COPY {table_name} TO '{OUTPUT_PATH}' (FORMAT parquet)")
         finally:
-            con.close() 
+            con.close()
+    print(f"[preprocess] end pid={os.getpid()} thread={threading.current_thread().name} t={datetime.now().strftime("%H:%M:%S.%f")[:-3]}", flush=True)
 
 
 
