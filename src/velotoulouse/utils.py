@@ -135,3 +135,16 @@ def move_to_folder(source_dir, target_dir):
         
     for file_name in file_names:
         shutil.move(os.path.join(source_dir, file_name), target_dir)
+
+
+def get_clustering_query():
+    
+    QUERY = f"""
+        SELECT
+            *,
+            date_part('isodow', last_updated) as dow
+        FROM stations_history
+
+    """
+
+    return QUERY

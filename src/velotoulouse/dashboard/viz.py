@@ -9,6 +9,7 @@ import streamlit as st
 from dotenv import load_dotenv
 from streamlit_folium import st_folium
 
+
 from velotoulouse.preprocess.clean import preprocess
 from velotoulouse.utils import get_env_var
 
@@ -150,6 +151,9 @@ def add_station_markers(m, df):
 
 
 def build_map(df):
+
+
+    
 
     if df.empty: # Toulouse center coordinates
         center = [43.6047, 1.4442]
